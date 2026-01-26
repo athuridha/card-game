@@ -4,6 +4,7 @@ export const CardSchema = z.object({
   id: z.string().min(1),
   text: z.string().min(1),
   category: z.string().min(1),
+  kind: z.enum(["truth", "dare"]).optional(),
   level: z.number().int().min(1).max(3).optional(),
   tags: z.array(z.string().min(1)).optional(),
 });

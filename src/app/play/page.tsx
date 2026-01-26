@@ -5,6 +5,7 @@ import { PhoneShell } from "@/components/ui/PhoneShell";
 import { TopBar } from "@/components/ui/TopBar";
 import { PrimaryButton, SmallPillButton } from "@/components/ui/Buttons";
 import { seedCards } from "@/data/cards.seed";
+import { todCards } from "@/data/tod.seed";
 import { CardsFileSchema } from "@/lib/cards/schema";
 import { useGame } from "@/lib/game/useGame";
 
@@ -14,8 +15,9 @@ export default function PlayPage() {
     return parsed.success ? parsed.data : seedCards;
   }, []);
 
-  const { state, activeCard, isFavorite, remaining, actions } = useGame(cardsFile.cards);
+  const { state, activeCard, todActiveCard, isFavorite, remaining, actions } = useGame(cardsFile.cards, todCards);
   const [showHistory, setShowHistory] = useState(false);
+  const [showTod, setShowTod] = useState(false);
 
   const currentPlayerName =
     state.players?.[Math.max(0, Math.min(state.currentPlayerIndex, (state.players?.length ?? 1) - 1))] || "";
@@ -23,12 +25,12 @@ export default function PlayPage() {
 
   return (
     <PhoneShell>
-      <div className="flex flex-col">
+      <div className="flex min-h-dvh flex-col">
         <TopBar title={showTurn ? `Giliran: ${currentPlayerName}` : "Permainan"} backHref="/setup" />
 
         <main className="flex flex-1 flex-col px-5 py-6">
-          <div className="flex-1">
-            <div className="mx-auto w-full max-w-[340px] rounded-[22px] border border-zinc-200 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.08)]">
+          <div className="mx-auto flex w-full max-w-[380px] flex-1 flex-col justify-center">
+            <div className="w-full rounded-[22px] border border-zinc-200 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.08)]">
               <div className="relative overflow-hidden rounded-[22px] px-6 pb-8 pt-7">
                 <div className="absolute -right-16 -bottom-16 h-52 w-52 rounded-full bg-gradient-to-br from-emerald-200/60 to-emerald-500/40" />
                 <div className="relative">
@@ -46,8 +48,17 @@ export default function PlayPage() {
               </div>
             </div>
 
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2">
               <SmallPillButton onClick={actions.skip}>Lewat</SmallPillButton>
+              <SmallPillButton
+                onClick={() => {
+                  actions.drawTodRandom();
+                  setShowTod(true);
+                }}
+              >
+                <DiceIcon />
+                TOD
+              </SmallPillButton>
               <SmallPillButton active={isFavorite} onClick={actions.toggleFavorite}>
                 <HeartIcon filled={isFavorite} />
                 Favorit
@@ -78,6 +89,14 @@ export default function PlayPage() {
             history={state.history}
             favorites={state.favorites}
             getText={(id) => cardsFile.cards.find((c) => c.id === id)?.text ?? id}
+          />
+        ) : null}
+
+        {showTod ? (
+          <TodResultModal
+            onClose={() => setShowTod(false)}
+            onReroll={() => actions.drawTodRandom()}
+            card={todActiveCard}
           />
         ) : null}
       </div>
@@ -209,6 +228,77 @@ function XIcon({ className }: { className?: string }) {
         strokeWidth="2"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function TodResultModal({
+  onClose,
+  onReroll,
+  card,
+}: {
+  onClose: () => void;
+  onReroll: () => void;
+  card: { text: string; kind?: "truth" | "dare" } | null;
+}) {
+  const label = card?.kind === "dare" ? "Tantangan" : "Jujur";
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-4 sm:items-center">
+      <div className="w-full max-w-[420px] rounded-2xl bg-white shadow-xl ring-1 ring-black/10">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+          <div className="text-sm font-semibold text-zinc-800">TOD (Random)</div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-zinc-100"
+            aria-label="Tutup"
+          >
+            <XIcon className="h-5 w-5 text-zinc-700" />
+          </button>
+        </div>
+
+        <div className="px-4 py-4">
+          <div className="mx-auto inline-flex items-center justify-center rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
+            {label}
+          </div>
+          <div className="mt-3 rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-base font-semibold leading-7 text-zinc-900">
+            {card?.text ?? "Sedang mengambil kartu..."}
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={onReroll}
+              className="h-11 rounded-xl border border-zinc-200 bg-white text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
+            >
+              Random lagi
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-11 rounded-xl bg-emerald-600 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(16,185,129,0.25)] hover:bg-emerald-700"
+            >
+              Oke
+            </button>
+          </div>
+          <div className="mt-3 text-xs text-zinc-500">TOD tidak mengganti kartu utama.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DiceIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+      <path
+        d="M5 7.5 12 3l7 4.5v9L12 21l-7-4.5v-9Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M9 9.5h.01M15 14.5h.01" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
     </svg>
   );
 }

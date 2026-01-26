@@ -10,6 +10,12 @@ export type GameState = {
   deck: string[]; // array of card ids in draw order
   deckIndex: number; // next draw index
   history: string[]; // drawn card ids in order
+  todTruthDeck: string[];
+  todTruthIndex: number;
+  todDareDeck: string[];
+  todDareIndex: number;
+  todHistory: string[];
+  todActiveCardId: string | null;
   favorites: Record<string, true>;
   activeCardId: string | null;
 };
@@ -23,6 +29,12 @@ export function defaultState(): GameState {
     deck: [],
     deckIndex: 0,
     history: [],
+    todTruthDeck: [],
+    todTruthIndex: 0,
+    todDareDeck: [],
+    todDareIndex: 0,
+    todHistory: [],
+    todActiveCardId: null,
     favorites: {},
     activeCardId: null,
   };

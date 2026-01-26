@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kartu Deep Talk",
-  description: "Permainan kartu untuk obrolan mendalam.",
+  title: "MainKartu",
+  description: "Kartu pertanyaan untuk ngobrol lebih dalam.",
 };
 
 export default function RootLayout({
