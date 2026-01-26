@@ -24,7 +24,7 @@ export default function SetupPage() {
   const { actions } = useGame(cards);
 
   const [playerCount, setPlayerCount] = useState<number>(4);
-  const [players, setPlayers] = useState<string[]>(["Amara", "Budi", "Citra", "Dani"]);
+  const [players, setPlayers] = useState<string[]>(Array.from({ length: 4 }, () => ""));
   const [mode, setMode] = useState<GameMode>("Santai");
 
   const categories = useMemo(() => summarizeByCategory(cards), [cards]);
