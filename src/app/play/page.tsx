@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PhoneShell } from "@/components/ui/PhoneShell";
 import { TopBar } from "@/components/ui/TopBar";
 import { PrimaryButton, SmallPillButton } from "@/components/ui/Buttons";
@@ -8,6 +8,7 @@ import { seedCards } from "@/data/cards.seed";
 import { todCards } from "@/data/tod.seed";
 import { CardsFileSchema } from "@/lib/cards/schema";
 import { useGame } from "@/lib/game/useGame";
+import { readCachedCards, ensureCardsLoaded, writeCachedCards } from "@/lib/cards/clientCache";
 
 export default function PlayPage() {
   const cardsFile = useMemo(() => {
@@ -15,7 +16,25 @@ export default function PlayPage() {
     return parsed.success ? parsed.data : seedCards;
   }, []);
 
-  const { state, activeCard, todActiveCard, isFavorite, remaining, actions } = useGame(cardsFile.cards, todCards);
+  const [loadedDeep, setLoadedDeep] = useState(() => readCachedCards()?.deep ?? cardsFile.cards);
+  const [loadedTod, setLoadedTod] = useState(() => readCachedCards()?.tod ?? todCards);
+
+  useEffect(() => {
+    const cached = readCachedCards();
+    if (cached) return;
+    (async () => {
+      try {
+        const payload = await ensureCardsLoaded();
+        writeCachedCards(payload);
+        setLoadedDeep(payload.deep);
+        setLoadedTod(payload.tod);
+      } catch {
+        // ignore; seed stays
+      }
+    })();
+  }, []);
+
+  const { state, activeCard, todActiveCard, isFavorite, remaining, actions } = useGame(loadedDeep, loadedTod);
   const [showHistory, setShowHistory] = useState(false);
   const [showTod, setShowTod] = useState(false);
 

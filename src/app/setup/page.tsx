@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PhoneShell } from "@/components/ui/PhoneShell";
 import { TopBar } from "@/components/ui/TopBar";
 import { PrimaryButton } from "@/components/ui/Buttons";
@@ -11,23 +11,50 @@ import { seedCards } from "@/data/cards.seed";
 import { CardsFileSchema, summarizeByCategory } from "@/lib/cards/schema";
 import { useRouter } from "next/navigation";
 import { useGame } from "@/lib/game/useGame";
+import { ensureCardsLoaded, readCachedCards, writeCachedCards } from "@/lib/cards/clientCache";
+import { todCards } from "@/data/tod.seed";
 
 export default function SetupPage() {
   const router = useRouter();
+
+  const [cardsReady, setCardsReady] = useState(false);
+  const [cardsError, setCardsError] = useState<string | null>(null);
 
   const cardsFile = useMemo(() => {
     const parsed = CardsFileSchema.safeParse(seedCards);
     return parsed.success ? parsed.data : seedCards;
   }, []);
 
-  const cards = cardsFile.cards;
-  const { actions } = useGame(cards);
+  const cached = readCachedCards();
+  const deepCards = cached?.deep ?? cardsFile.cards;
+  const tod = cached?.tod ?? todCards;
+  const { actions } = useGame(deepCards, tod);
 
   const [playerCount, setPlayerCount] = useState<number>(4);
   const [players, setPlayers] = useState<string[]>(Array.from({ length: 4 }, () => ""));
   const [mode, setMode] = useState<GameMode>("Santai");
 
-  const categories = useMemo(() => summarizeByCategory(cards), [cards]);
+  const categories = useMemo(() => summarizeByCategory(deepCards), [deepCards]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setCardsError(null);
+        const payload = await ensureCardsLoaded();
+        if (cancelled) return;
+        writeCachedCards(payload);
+        setCardsReady(true);
+      } catch {
+        if (cancelled) return;
+        setCardsError("Gagal memuat kartu dari server. Pakai data lokal dulu.");
+        setCardsReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function onChangePlayerCount(n: number) {
     setPlayerCount(n);
@@ -57,7 +84,15 @@ export default function SetupPage() {
     });
   }
 
-  function onStart() {
+  async function onStart() {
+    try {
+      // Ensure cards are loaded before starting (faster Play screen).
+      const payload = await ensureCardsLoaded();
+      writeCachedCards(payload);
+    } catch {
+      // ignore; fallback to seed
+    }
+
     actions.startNewGame({
       mode,
       playerCount,
@@ -112,6 +147,7 @@ export default function SetupPage() {
 
           <section className="space-y-2">
             <div className="text-xs font-semibold text-zinc-500">Pratinjau Kategori</div>
+            {cardsError ? <div className="text-xs font-semibold text-amber-700">{cardsError}</div> : null}
             <div className="grid grid-cols-2 gap-2">
               {categories.map((c) => (
                 <div key={c.category} className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs">
@@ -126,7 +162,9 @@ export default function SetupPage() {
           </section>
 
           <div className="pt-2">
-            <PrimaryButton onClick={onStart}>Mulai</PrimaryButton>
+            <PrimaryButton onClick={onStart} disabled={!cardsReady}>
+              {cardsReady ? "Mulai" : "Memuat kartu..."}
+            </PrimaryButton>
             <div className="mt-3 text-center text-xs text-zinc-500">
               atau kembali ke <Link href="/" className="font-semibold text-emerald-700">Home</Link>
             </div>
