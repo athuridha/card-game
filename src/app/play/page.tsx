@@ -34,9 +34,10 @@ export default function PlayPage() {
     })();
   }, []);
 
-  const { state, activeCard, todActiveCard, isFavorite, remaining, actions } = useGame(loadedDeep, loadedTod);
+  const { state, activeCard, todActiveCard, remaining, actions } = useGame(loadedDeep, loadedTod);
   const [showHistory, setShowHistory] = useState(false);
   const [showTod, setShowTod] = useState(false);
+  const [todAfterClose, setTodAfterClose] = useState<null | "next">(null);
 
   const currentPlayerName =
     state.players?.[Math.max(0, Math.min(state.currentPlayerIndex, (state.players?.length ?? 1) - 1))] || "";
@@ -67,20 +68,25 @@ export default function PlayPage() {
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <SmallPillButton onClick={actions.skip}>Lewat</SmallPillButton>
+            <div className="mt-4 grid grid-cols-3 gap-2">
               <SmallPillButton
                 onClick={() => {
                   actions.drawTodRandom();
+                  setTodAfterClose("next");
+                  setShowTod(true);
+                }}
+              >
+                Lewat (TOD)
+              </SmallPillButton>
+              <SmallPillButton
+                onClick={() => {
+                  actions.drawTodRandom();
+                  setTodAfterClose(null);
                   setShowTod(true);
                 }}
               >
                 <DiceIcon />
                 TOD
-              </SmallPillButton>
-              <SmallPillButton active={isFavorite} onClick={actions.toggleFavorite}>
-                <HeartIcon filled={isFavorite} />
-                Favorit
               </SmallPillButton>
               <SmallPillButton onClick={() => setShowHistory(true)}>
                 <ClockIcon />
@@ -106,15 +112,19 @@ export default function PlayPage() {
           <HistoryModal
             onClose={() => setShowHistory(false)}
             history={state.history}
-            favorites={state.favorites}
             getText={(id) => cardsFile.cards.find((c) => c.id === id)?.text ?? id}
           />
         ) : null}
 
         {showTod ? (
           <TodResultModal
-            onClose={() => setShowTod(false)}
-            onReroll={() => actions.drawTodRandom()}
+            onClose={() => {
+              setShowTod(false);
+              if (todAfterClose === "next") {
+                setTodAfterClose(null);
+                actions.drawNext();
+              }
+            }}
             card={todActiveCard}
           />
         ) : null}
@@ -126,12 +136,10 @@ export default function PlayPage() {
 function HistoryModal({
   onClose,
   history,
-  favorites,
   getText,
 }: {
   onClose: () => void;
   history: string[];
-  favorites: Record<string, true>;
   getText: (id: string) => string;
 }) {
   const reversed = [...history].reverse();
@@ -156,12 +164,7 @@ function HistoryModal({
             <div className="space-y-2">
               {reversed.map((id) => (
                 <div key={id} className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800">
-                  <div className="flex items-start gap-2">
-                    <div className="mt-1">
-                      <span className={favorites[id] ? "text-emerald-600" : "text-zinc-300"}>♥</span>
-                    </div>
-                    <div className="leading-6">{getText(id)}</div>
-                  </div>
+                  <div className="leading-6">{getText(id)}</div>
                 </div>
               ))}
             </div>
@@ -178,19 +181,6 @@ function HistoryModal({
         </div>
       </div>
     </div>
-  );
-}
-
-function HeartIcon({ filled }: { filled?: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-      <path
-        d="M12 21s-7-4.6-9.2-8.7C1 9 2.6 6.5 5.4 6.1c1.7-.2 3.3.5 4.3 1.8 1-1.3 2.6-2 4.3-1.8C16.8 6.5 18.4 9 18.2 12.3 19 16.4 12 21 12 21z"
-        fill={filled ? "currentColor" : "none"}
-        stroke="currentColor"
-        strokeWidth="1.8"
-      />
-    </svg>
   );
 }
 
@@ -253,14 +243,13 @@ function XIcon({ className }: { className?: string }) {
 
 function TodResultModal({
   onClose,
-  onReroll,
   card,
 }: {
   onClose: () => void;
-  onReroll: () => void;
   card: { text: string; kind?: "truth" | "dare" } | null;
 }) {
   const label = card?.kind === "dare" ? "Tantangan" : "Jujur";
+  const [confirmed, setConfirmed] = useState(false);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-4 sm:items-center">
       <div className="w-full max-w-[420px] rounded-2xl bg-white shadow-xl ring-1 ring-black/10">
@@ -284,20 +273,27 @@ function TodResultModal({
             {card?.text ?? "Sedang mengambil kartu..."}
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={onReroll}
-              className="h-11 rounded-xl border border-zinc-200 bg-white text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
-            >
-              Random lagi
-            </button>
+          <label className="mt-4 flex cursor-pointer items-start gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={confirmed}
+              onChange={(e) => setConfirmed(e.target.checked)}
+            />
+            <span>
+              Aku sudah jawab/lakukan (kalau benar-benar nggak aman/nyaman, kamu tetap boleh tutup — tapi idealnya ikuti
+              tantangannya).
+            </span>
+          </label>
+
+          <div className="mt-4">
             <button
               type="button"
               onClick={onClose}
-              className="h-11 rounded-xl bg-emerald-600 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(16,185,129,0.25)] hover:bg-emerald-700"
+              disabled={!confirmed}
+              className="h-11 w-full rounded-xl bg-emerald-600 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(16,185,129,0.25)] hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Oke
+              Selesai
             </button>
           </div>
           <div className="mt-3 text-xs text-zinc-500">TOD tidak mengganti kartu utama.</div>

@@ -17,7 +17,7 @@ export default function CaraMainPage() {
             <li>Tekan <b>Mulai Main</b>, atur pemain (opsional) dan mode.</li>
             <li>Di layar permainan, tekan <b>Kartu Berikutnya</b> untuk mengambil kartu.</li>
             <li>Kalau ada nama pemain, kamu bisa pakai sebagai panduan giliran (opsional).</li>
-            <li>Gunakan <b>Favorit</b> untuk menandai kartu yang ingin dibahas lagi.</li>
+            <li>Kalau ada pertanyaan yang terlalu berat, pakai <b>Lewat (TOD)</b> / <b>TOD</b> sebagai pengganti.</li>
           </ol>
           <p className="text-zinc-500">Tips: Pastikan semua nyaman, boleh skip kalau belum siap.</p>
         </div>
